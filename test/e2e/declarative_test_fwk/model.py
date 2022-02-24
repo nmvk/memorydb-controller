@@ -147,12 +147,17 @@ class Step:
 
 
 # fields in a test scenario
+class ResourceStepDict(TypedDict, total=False):
+    resource: ResourceDict
+    steps: List[StepDict]
+
+
+# fields in a test scenario
 class ScenarioDict(TypedDict, total=False):
     id: str
     description: str
     marks: List[str]
-    resource: ResourceDict
-    steps: List[StepDict]
+    resources: List[ResourceStepDict]
 
 
 class Scenario:
@@ -164,9 +169,11 @@ class Scenario:
         self.config = config
         self.test_steps = []
         self.replacements = replacements
-        custom_resource_details = self.config.get("resource", {})
-        for step_config in self.config.get("steps", []):
-            self.test_steps.append(Step(resource_directory, step_config, custom_resource_details.copy(), replacements))
+        custom_resource_details = self.config.get("resources", [])
+        for custom_resource_detail in custom_resource_details:
+            for step_config in custom_resource_detail.get("steps", []):
+                self.test_steps.append(Step(resource_directory, step_config,
+                                            custom_resource_detail.get("resource", {}).copy(), replacements))
 
     @property
     def id(self) -> str:

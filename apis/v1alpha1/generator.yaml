@@ -1,11 +1,80 @@
 ignore:
   resource_names:
     - Snapshot
-    - User
-    - ACL
     - Cluster
-    - SubnetGroup
 resources:
+  SubnetGroup:
+    exceptions:
+      errors:
+        404:
+          code: SubnetGroupNotFoundFault
+      terminal_codes:
+        - SubnetGroupAlreadyExistsFault
+        - SubnetGroupQuotaExceededFault
+        - SubnetQuotaExceededFault
+        - InvalidSubnet
+        - SubnetNotAllowedFault
+        - TagQuotaPerResourceExceeded
+        - SubnetInUse
+        - InvalidParameterValueException
+    hooks:
+      sdk_read_many_pre_set_output:
+        template_path: hooks/subnetgroup/sdk_read_many_pre_set_output.go.tpl
+      sdk_create_post_set_output:
+        template_path: hooks/subnetgroup/sdk_create_post_set_output.go.tpl
+      sdk_update_post_set_output:
+        template_path: hooks/subnetgroup/sdk_create_post_set_output.go.tpl
+  ACL:
+    exceptions:
+      errors:
+        404:
+          code: ACLNotFoundFault
+      terminal_codes:
+        - ACLAlreadyExistsFault
+        - DefaultUserRequired
+        - UserNotFoundFault
+        - DuplicateUserNameFault
+        - ACLQuotaExceededFault
+        - InvalidParameterValueException
+        - InvalidParameterCombinationException
+        - TagQuotaPerResourceExceeded
+    hooks:
+      sdk_read_many_post_set_output:
+        code: "rm.setSyncedCondition(resp.ACLs[0].Status, &resource{ko})"
+      sdk_update_pre_build_request:
+        template_path: hooks/acl/sdk_update_pre_build_request.go.tpl
+      sdk_update_post_build_request:
+        template_path: hooks/acl/sdk_update_post_build_request.go.tpl
+      sdk_create_post_set_output:
+        code: "rm.setSyncedCondition(resp.ACL.Status, &resource{ko})"
+      sdk_update_post_set_output:
+        code: "ko.Spec.UserNames = desired.ko.Spec.UserNames\nrm.setSyncedCondition(resp.ACL.Status, &resource{ko})"
+  User:
+    exceptions:
+      errors:
+        404:
+          code: UserNotFoundFault
+      terminal_codes:
+        - InvalidParameterValueException
+        - UserAlreadyExistsFault
+        - UserQuotaExceededFault
+        - DuplicateUserNameFault
+        - InvalidParameterCombinationException
+        - TagQuotaPerResourceExceeded
+    fields:
+      AuthenticationMode.Passwords:
+        is_secret: true
+        compare:
+          is_ignored: true
+    hooks:
+      sdk_read_many_post_set_output:
+        code: "rm.setSyncedCondition(resp.Users[0].Status, &resource{ko})"
+      sdk_create_post_set_output:
+        code: "rm.setAnnotationsFields(desired, ko)\nrm.setSyncedCondition(resp.User.Status, &resource{ko})"
+      sdk_update_post_set_output:
+        code: "rm.setAnnotationsFields(desired, ko)\nrm.setSyncedCondition(resp.User.Status, &resource{ko})"
+      sdk_update_pre_build_request:
+        template_path: hooks/user/sdk_update_pre_build_request.go.tpl
   ParameterGroup:
     exceptions:
       errors:
@@ -17,6 +86,7 @@ resources:
         - InvalidParameterGroupStateFault
         - InvalidParameterValueException
         - InvalidParameterCombinationException
+        - TagQuotaPerResourceExceeded
     fields:
       Name:
         is_primary_key: true
